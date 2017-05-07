@@ -8,6 +8,7 @@ mime    = require 'mime-types'
 log4js  = require 'log4js'
 
 logger  = log4js.getLogger()
+#logger.setLevel 'INFO'
 
 getToken = (par, fin) ->
   par =
@@ -41,9 +42,34 @@ getInput = (callback) ->
 
 # read token file
 readToken = (options, callback) ->
-  fs.readFile options.authinfo, (err, str) ->
-    return callback err if err
-    callback err, JSON.parse str
+  wf = wfall.create()
+  wf.push (hooks, callback) ->
+    fs.readFile options.authinfo, (err, str) ->
+      return callback err if err
+      hooks.auth = JSON.parse str
+      logger.debug 'read_token', hooks.auth
+      callback()
+  refresh = (hooks) ->
+    t = new Date hooks.auth.createdAt
+    new Date() - t > 3600 * 1000
+  wf.pushIf refresh, (hooks, callback) ->
+    par =
+      uri: 'https://login.microsoftonline.com/common/oauth2/v2.0/token'
+      method: 'POST'
+      form:
+        client_id: hooks.auth.client_id
+        client_secret: hooks.auth.client_secret
+        grant_type: 'refresh_token'
+        redirect_uri: options.redirect_uri
+        refresh_token: hooks.auth.refresh_token
+      json: yes
+    request par, (err, resp, body) ->
+      logger.debug 'refresh_token', body
+      hooks.reauth = body
+      d = _.extend {}, hooks.auth, {createdAt: new Date}, _.pick body, ['access_token', 'refresh_token']
+      fs.writeFile options.authinfo, JSON.stringify(d), callback
+  wf.exec (err, hooks) ->
+    callback null, access_token: (hooks.reauth or hooks.auth).access_token
 
 
 cmdAuth = (options) ->
