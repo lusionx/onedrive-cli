@@ -3,6 +3,7 @@ _       = require 'lodash'
 program = require 'commander'
 fs      = require 'fs'
 wfall   = require 'water-fall'
+mime    = require 'mime-types'
 log4js  = require 'log4js'
 
 logger  = log4js.getLogger()
@@ -27,17 +28,6 @@ getToken = (code, fin) ->
     json: yes
   request par, (err, resp, body) ->
     fin? err, body
-
-dirve = (access_token, fin) ->
-  par =
-    uri: 'https://graph.microsoft.com/v1.0/me/drive/root/children'
-    headers:
-      Authorization: 'bearer ' + access_token
-    method: 'GET'
-    json: yes
-  request par, (err, resp, body) ->
-    console.log '%j', body
-    fin? err
 
 
 getInput = (callback) ->
@@ -100,10 +90,35 @@ cmdShowList = (options) ->
     logger.trace '%j', par
     request par, (err, resp, body) ->
       logger.error err if err
-      logger.debug body if body.err
+      logger.debug body if body.error
       _.each body.value, (e) ->
         logger.info '%j', _.omit e, ['createdBy', 'lastModifiedBy', 'parentReference']
       callback()
+  wf.exec (err) ->
+
+
+cmdPut = (options) ->
+  logger.debug options
+  wf = wfall.create
+    stream: fs.createReadStream options.localpath
+  wf.push (hooks, callback) ->
+    readToken options, (err, auth) ->
+      hooks.auth = auth
+      callback()
+  wf.push (hooks, callback) ->
+    p = if v = options.path then ':/' + v + ':' else ''
+    par =
+      uri: [options.ROOT, options.user, options.dirve, '/root', encodeURIComponent(p), '/content'].join ''
+      headers:
+        Authorization: 'bearer ' + hooks.auth.access_token
+        'Content-Type': mime.lookup options.localpath
+      method: 'PUT'
+      body: hooks.stream
+    logger.trace '%j', _.omit par, 'body'
+    request par, (err, resp, body) ->
+      logger.error err if err
+      logger.debug body if body.error
+      logger.debug body
   wf.exec (err) ->
 
 
@@ -130,6 +145,14 @@ main = () ->
     .action (name, options) ->
       par = _.extend {}, defaultOptions, _.pick options, ['path'].concat _.keys defaultOptions
       cmdShowList par if name is 'list'
+
+  program.command 'put <localpath>'
+    .description 'show list/drive'
+    .option '-p --path [name]', 'item id/name'
+    .action (name, options) ->
+      par = _.extend {}, defaultOptions, _.pick options, ['path'].concat _.keys defaultOptions
+      par.localpath = name
+      cmdPut par
 
   program.parse process.argv
 
