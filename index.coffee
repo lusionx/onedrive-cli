@@ -182,30 +182,31 @@ cmdPutSession = (options) ->
       hooks.buffs = data
       callback()
   wf.push (hooks, callback) ->
-    last = null
     iter = (frag, fin) ->
       par =
         uri: hooks.session.uploadUrl
         headers:
           'Content-Range': "bytes #{frag.rangeF}-#{frag.rangeT}/#{hooks.buffs.length}"
-          'Content-Length': frag.buf.length
+          'Content-Length': frag.size
         method: 'PUT'
-        body: frag.buf
+        body: hooks.buffs.slice frag.rangeF, frag.size
       logger.trace '%j', _.omit par, 'body'
       request par, (err, resp, body) ->
-        logger.error err if err
-        logger.debug body if body.error
+        return logger.error err if err
+        logger.warn body if body.error
         logger.debug body
-        fin()
-    size = +options.size * 1024 * 1024
-    list = _.chunk hooks.buffs, size
-    list = _.map list, (e, i) ->
+        fin null, body
+    size = +options.size * Math.pow(2, 20)
+    list = _.range hooks.buffs.length / size
+    list = _.map list, (i) ->
       rangeF: f = i*size
-      rangeT: Math.min f + size - 1, hooks.buffs.length - 1
-      buf: Buffer.from e
-    async.eachLimit list, 1, iter
-
-  wf.exec (err) ->
+      size: s = Math.min size, hooks.buffs.length - f
+      rangeT: f + s - 1
+    async.mapLimit list, 1, iter, (err, arr) ->
+      hooks.item = _.find arr, (e) -> e.id and e.name
+      callback()
+  wf.exec (err, item) ->
+    logger.info 'put success', hooks.item
 
 
 defaultOptions =
