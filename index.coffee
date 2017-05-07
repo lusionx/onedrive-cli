@@ -170,31 +170,38 @@ cmdPutSession = (options) ->
       method: 'POST'
       json: yes
     request par, (err, resp, body) ->
-      logger.debug body
+      logger.debug 'createUploadSession', body
       hooks.session = body
       callback()
   wf.push (hooks, callback) ->
     fs.readFile options.localpath, {encoding: null}, (err, data) ->
       logger.error err if err
       logger.debug 'file length', data.length
-      hooks.buffs = _.chunk data, 5 * 1024 * 1024
+      hooks.buffs = data
       callback()
   wf.push (hooks, callback) ->
     last = null
-    iter = (buf, fin) ->
+    iter = (frag, fin) ->
       par =
         uri: hooks.session.uploadUrl
         headers:
-          'Content-Range': hooks.session.nextExpectedRanges[0] + (buf.length - 1) + '/128'
-          'Content-Length': buf.length
+          'Content-Range': "bytes #{frag.rangeF}-#{frag.rangeT}/#{hooks.buffs.length}"
+          'Content-Length': frag.buf.length
         method: 'PUT'
-        body: Buffer.from buf
+        body: frag.buf
       logger.trace '%j', _.omit par, 'body'
       request par, (err, resp, body) ->
         logger.error err if err
         logger.debug body if body.error
         logger.debug body
-    async.eachLimit hooks.buffs, 1, iter
+        fin()
+    size = +options.size * 1024 * 1024
+    list = _.chunk hooks.buffs, size
+    list = _.map list, (e, i) ->
+      rangeF: f = i*size
+      rangeT: Math.min f + size - 1, hooks.buffs.length - 1
+      buf: Buffer.from e
+    async.eachLimit list, 1, iter
 
   wf.exec (err) ->
 
@@ -232,11 +239,11 @@ main = () ->
   program.command 'put <localpath>'
     .description 'show list/drive'
     .option '-p --path [name]', 'item id/name'
-    .option '--session', 'item id/name'
+    .option '--size [number]', 'split file by ?MB before put'
     .action (name, options) ->
-      par = _.extend {}, defaultOptions, _.pick options, ['path', 'session'].concat _.keys defaultOptions
+      par = _.extend {}, defaultOptions, _.pick options, ['path', 'size'].concat _.keys defaultOptions
       par.localpath = name
-      fn = if par.session then cmdPutSession else cmdPut
+      fn = if par.size then cmdPutSession else cmdPut
       fn par
 
   program.parse process.argv
