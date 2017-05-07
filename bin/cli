@@ -1,0 +1,4 @@
+#!/usr/bin/env node
+
+var a = require('../index')
+a.main()
