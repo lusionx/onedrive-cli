@@ -1,5 +1,6 @@
 request = require 'request'
 async   = require 'async'
+Path    = require 'path'
 _       = require 'lodash'
 program = require 'commander'
 fs      = require 'fs'
@@ -169,6 +170,7 @@ cmdPutSession = (options) ->
         'Content-Type': mime.lookup options.localpath
       method: 'POST'
       json: yes
+    logger.trace '%j', par
     request par, (err, resp, body) ->
       logger.debug 'createUploadSession', body
       hooks.session = body
@@ -243,6 +245,7 @@ main = () ->
     .action (name, options) ->
       par = _.extend {}, defaultOptions, _.pick options, ['path', 'size'].concat _.keys defaultOptions
       par.localpath = name
+      par.path += Path.basename par.localpath if _.endsWith par.path, '/'
       fn = if par.size then cmdPutSession else cmdPut
       fn par
 
