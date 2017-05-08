@@ -114,6 +114,29 @@ cmdShowList = (options) ->
   wf.exec (err) ->
 
 
+cmdShowDrive = (options) ->
+  wf = wfall.create()
+  wf.push (hooks, callback) ->
+    readToken options, (err, auth) ->
+      hooks.auth = auth
+      callback()
+  wf.push (hooks, callback) ->
+    par =
+      uri: [options.ROOT, options.user, '/drives'].join ''
+      headers:
+        Authorization: 'bearer ' + hooks.auth.access_token
+      method: 'GET'
+      json: yes
+    logger.trace '%j', par
+    request par, (err, resp, body) ->
+      logger.error err if err
+      logger.debug body if body.error
+      _.each body.value, (e) ->
+        logger.info '%j', e
+      callback()
+  wf.exec (err) ->
+
+
 cmdPut = (options) ->
   wf = wfall.create
     stream: fs.createReadStream options.localpath
@@ -239,6 +262,7 @@ main = () ->
     .action (name, options) ->
       par = _.extend {}, defaultOptions, _.pick options, ['path'].concat _.keys defaultOptions
       cmdShowList par if name is 'list'
+      cmdShowDrive par if name is 'drive'
 
   program.command 'put <localpath>'
     .description 'upload file'
