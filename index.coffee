@@ -8,6 +8,7 @@ wfall   = require 'water-fall'
 mime    = require 'mime-types'
 log4js  = require 'log4js'
 
+helper  = require './helper'
 logger  = log4js.getLogger()
 #logger.setLevel 'INFO'
 
@@ -24,21 +25,6 @@ getToken = (par, fin) ->
     json: yes
   request par, (err, resp, body) ->
     fin? err, body
-
-
-getInput = (callback) ->
-  input = ''
-  process.stdin.resume()
-  process.stdin.setEncoding('utf8')
-  process.stdin.on 'data', (chunk) ->
-    if chunk is '\n'
-      process.stdin.emit 'end'
-      return callback null, _.trim(input)
-    input += chunk
-  process.stdin.on 'error', (err) ->
-    console.error 'Could not read from stdin', err
-  process.stdin.on 'end', () ->
-    console.log 'stdin end', input
 
 
 # read token file
@@ -84,7 +70,7 @@ cmdAuth = (options) ->
     ].join ''
   wf.push (hooks, callback) ->
     console.log "OPEN", hooks.open
-    getInput (err, code) ->
+    helper.getInput '\n', (err, code) ->
       hooks.code = code
       callback()
   wf.push (hooks, callback) ->
@@ -191,7 +177,7 @@ cmdPutSession = (options) ->
         method: 'PUT'
         body: hooks.buffs.slice frag.rangeF, frag.size
       logger.trace '%j', _.omit par, 'body'
-      request par, (err, resp, body) ->
+      helper.request par, (err, resp, body) ->
         logger.error err if err
         logger.debug 'put fragment', resp.statusCode, resp.headers if resp
         if err or body?.error
