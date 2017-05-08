@@ -6,7 +6,6 @@ program = require 'commander'
 fs      = require 'fs'
 wfall   = require 'water-fall'
 mime    = require 'mime-types'
-{exec}  = require 'child_process'
 log4js  = require 'log4js'
 
 helper  = require './helper'
@@ -268,13 +267,18 @@ cmdGetContent = (options) ->
     request par, (err, resp) ->
       logger.error err if err
       logger.debug resp.statusCode, resp.headers if resp
-      logger.info hooks.cmd = "curl -o '#{hooks.info.name}' '#{resp.headers['location']}'"
+      logger.info hooks.location = resp.headers['location']
       callback()
   wf.push (hooks, callback) ->
-    return callback() if not hooks.cmd
-    exec hooks.cmd, (err, out) ->
-      logger.debug out
+    return callback() if not hooks.location
+    name = if _.endsWith options.output, '/' then options.output + hooks.info.name else option.output
+    w = fs.createWriteStream name
+    w.on 'pipe', () ->
+      logger.info 'downloading...'
+    w.on 'finish', () ->
+      logger.info 'downloading...finish'
       callback()
+    request(hooks.location).pipe(w)
   wf.exec (err) ->
 
 
@@ -283,7 +287,7 @@ defaultOptions =
   logger: 'INFO'
   user: '/v1.0/me'
   dirve: '/drive'
-  authinfo: '.odAuthInfo'
+  authinfo: process.env['HOME'] + '/.odAuthInfo'
   scope: 'offline_access files.readwrite.all'
   redirect_uri: 'http://localhost'
 
@@ -317,10 +321,11 @@ main = () ->
 
   program.command 'get <id>'
     .description 'get item content'
-    .option '-p --path [name]', 'item id/name'
+    .option '-o --output [localpath]', 'item save'
     .action (id, options) ->
-      par = _.extend {}, defaultOptions, pickParent(options), _.pick options, ['path'].concat _.keys defaultOptions
+      par = _.extend {}, defaultOptions, pickParent(options), _.pick options, ['output'].concat _.keys defaultOptions
       par.id = id
+      par.output = './' if not par.output
       logger.setLevel par.logger
       cmdGetContent par
 
