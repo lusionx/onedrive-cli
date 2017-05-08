@@ -178,7 +178,7 @@ cmdPutSession = (options) ->
   wf.push (hooks, callback) ->
     fs.readFile options.localpath, {encoding: null}, (err, data) ->
       logger.error err if err
-      logger.debug 'file length', data.length
+      logger.info 'FILE',  options.localpath, 'LENGTH', data.length
       hooks.buffs = data
       callback()
   wf.push (hooks, callback) ->
@@ -192,20 +192,35 @@ cmdPutSession = (options) ->
         body: hooks.buffs.slice frag.rangeF, frag.size
       logger.trace '%j', _.omit par, 'body'
       request par, (err, resp, body) ->
-        return logger.error err if err
-        logger.warn body if body.error
-        logger.debug body
-        fin null, body
+        logger.error err if err
+        logger.debug 'put fragment', resp.statusCode, resp.headers if resp
+        if err or body?.error
+          logger.warn body
+        else
+          logger.debug body
+        request hooks.session.uploadUrl, (err, resp, status) ->
+          logger.debug 'status', status
+          fin null, body
     size = +options.size * Math.pow(2, 20)
     list = _.range hooks.buffs.length / size
     list = _.map list, (i) ->
-      rangeF: f = i*size
+      rangeF: f = i * size
       size: s = Math.min size, hooks.buffs.length - f
       rangeT: f + s - 1
     async.mapLimit list, 1, iter, (err, arr) ->
-      hooks.item = _.find arr, (e) -> e.id and e.name
+      hooks.item = _.find arr, (e) -> e and e.id and e.name
       callback()
-  wf.exec (err, item) ->
+  wf.push (hooks, callback) ->
+    par =
+      uri: hooks.session.uploadUrl
+      headers: {}
+      method: 'DELETE'
+    logger.trace '%j', par
+    request par, (err, resp) ->
+      logger.error err if err
+      logger.debug 'cancel session', resp.statusCode, resp.headers if resp
+      callback null
+  wf.exec (err, hooks) ->
     logger.info 'put success', hooks.item
 
 
@@ -240,7 +255,7 @@ main = () ->
       cmdShowList par if name is 'list'
 
   program.command 'put <localpath>'
-    .description 'show list/drive'
+    .description 'upload file'
     .option '-p --path [name]', 'item id/name'
     .option '--size [number]', 'split file by ?MB before put'
     .action (name, options) ->
