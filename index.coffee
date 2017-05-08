@@ -10,7 +10,6 @@ log4js  = require 'log4js'
 
 helper  = require './helper'
 logger  = log4js.getLogger()
-#logger.setLevel 'INFO'
 
 getToken = (par, fin) ->
   par =
@@ -109,7 +108,7 @@ cmdShowList = (options) ->
       logger.error err if err
       logger.debug body if body.error
       _.each body.value, (e) ->
-        logger.info '%j', _.omit e, ['createdBy', 'lastModifiedBy', 'parentReference']
+        logger.info '%j', _.pick e, ['id', 'name']
       callback()
   wf.exec (err) ->
 
@@ -233,6 +232,7 @@ cmdPutSession = (options) ->
 
 defaultOptions =
   ROOT: 'https://graph.microsoft.com'
+  logger: 'INFO'
   user: '/v1.0/me'
   dirve: '/drive'
   authinfo: '.odAuthInfo'
@@ -244,6 +244,9 @@ main = () ->
   program.version '1.0.0'
     .option '-u --user [id]', 'prefix eg. /v1.0/users/{id}, default ' + defaultOptions.user
     .option '-d --drive [id]', 'select dirve eg. dirves/{id}, default ' + defaultOptions.dirve
+    .option '--logger [level]', 'set logger level TRACE,DEBUG,{INFO},WARN,ERROR'
+
+  pickParent = (options) -> _.pick options.parent, ['logger']
 
   program.command 'auth'
     .description 'show auth uri && wait for {code} from stdin'
@@ -251,14 +254,16 @@ main = () ->
     .option '--client_secret <value>'
     .option '-a --authinfo <filename>', 'save auth-info'
     .action (options) ->
-      par = _.extend {}, defaultOptions, _.pick options, ['client_id', 'client_secret'].concat _.keys defaultOptions
+      par = _.extend {}, defaultOptions, pickParent(options), _.pick options, ['client_id', 'client_secret'].concat _.keys defaultOptions
+      logger.setLevel par.logger
       cmdAuth par
 
   program.command 'show <res>'
     .description 'show list/drive'
     .option '-p --path [name]', 'item id/name'
     .action (name, options) ->
-      par = _.extend {}, defaultOptions, _.pick options, ['path'].concat _.keys defaultOptions
+      par = _.extend {}, defaultOptions, pickParent(options), _.pick options, ['path'].concat _.keys defaultOptions
+      logger.setLevel par.logger
       cmdShowList par if name is 'list'
       cmdShowDrive par if name is 'drive'
 
@@ -267,7 +272,8 @@ main = () ->
     .option '-p --path [name]', 'item id/name'
     .option '--size [number]', 'split file by ?MB before put'
     .action (name, options) ->
-      par = _.extend {}, defaultOptions, _.pick options, ['path', 'size'].concat _.keys defaultOptions
+      par = _.extend {}, defaultOptions, pickParent(options), _.pick options, ['path', 'size'].concat _.keys defaultOptions
+      logger.setLevel par.logger
       par.localpath = name
       par.path += Path.basename par.localpath if _.endsWith par.path, '/'
       fn = if par.size then cmdPutSession else cmdPut
