@@ -198,7 +198,7 @@ cmdPutSession = (options) ->
           'Content-Range': "bytes #{frag.rangeF}-#{frag.rangeT}/#{hooks.buffs.length}"
           'Content-Length': frag.size
         method: 'PUT'
-        body: hooks.buffs.slice frag.rangeF, frag.size
+        body: hooks.buffs.slice frag.rangeF, frag.rangeF + frag.size
       logger.trace '%j', _.omit par, 'body'
       helper.request par, (err, resp, body) ->
         logger.error err if err
@@ -207,9 +207,7 @@ cmdPutSession = (options) ->
           logger.warn body
         else
           logger.debug body
-        request hooks.session.uploadUrl, (err, resp, status) ->
-          logger.debug 'status', status
-          fin null, body
+        fin null, JSON.parse body
     size = +options.size * Math.pow(2, 20)
     list = _.range hooks.buffs.length / size
     list = _.map list, (i) ->
