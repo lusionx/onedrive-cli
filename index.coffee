@@ -6,6 +6,7 @@ program = require 'commander'
 fs      = require 'fs'
 wfall   = require 'water-fall'
 mime    = require 'mime-types'
+{exec}  = require 'child_process'
 log4js  = require 'log4js'
 
 helper  = require './helper'
@@ -157,6 +158,7 @@ cmdPut = (options) ->
       logger.error err if err
       logger.debug body if body.error
       logger.debug body
+      callback()
   wf.exec (err) ->
 
 
@@ -230,6 +232,52 @@ cmdPutSession = (options) ->
     logger.info 'put success', hooks.item
 
 
+cmdGetContent = (options) ->
+  wf = wfall.create
+    uri: [options.ROOT, options.user, options.dirve, '/items/', encodeURIComponent(options.id)].join ''
+  wf.push (hooks, callback) ->
+    readToken options, (err, auth) ->
+      hooks.auth = auth
+      callback()
+  wf.push (hooks, callback) ->
+    par =
+      uri: hooks.uri
+      headers:
+        Authorization: 'bearer ' + hooks.auth.access_token
+      method: 'GET'
+      json: yes
+    logger.trace '%j', par
+    request par, (err, resp, body) ->
+      logger.error err if err
+      logger.debug resp.statusCode, resp.headers if resp
+      if err or body?.error
+        logger.warn body
+      else
+        logger.debug body
+      hooks.info = body
+      callback()
+  wf.push (hooks, callback) ->
+    return callback() if not hooks.info.name
+    par =
+      uri: hooks.uri + '/content'
+      headers:
+        Authorization: 'bearer ' + hooks.auth.access_token
+      method: 'GET'
+      followRedirect: no
+    logger.trace '%j', par
+    request par, (err, resp) ->
+      logger.error err if err
+      logger.debug resp.statusCode, resp.headers if resp
+      logger.info hooks.cmd = "curl -o '#{hooks.info.name}' '#{resp.headers['location']}'"
+      callback()
+  wf.push (hooks, callback) ->
+    return callback() if not hooks.cmd
+    exec hooks.cmd, (err, out) ->
+      logger.debug out
+      callback()
+  wf.exec (err) ->
+
+
 defaultOptions =
   ROOT: 'https://graph.microsoft.com'
   logger: 'INFO'
@@ -266,6 +314,15 @@ main = () ->
       logger.setLevel par.logger
       cmdShowList par if name is 'list'
       cmdShowDrive par if name is 'drive'
+
+  program.command 'get <id>'
+    .description 'get item content'
+    .option '-p --path [name]', 'item id/name'
+    .action (id, options) ->
+      par = _.extend {}, defaultOptions, pickParent(options), _.pick options, ['path'].concat _.keys defaultOptions
+      par.id = id
+      logger.setLevel par.logger
+      cmdGetContent par
 
   program.command 'put <localpath>'
     .description 'upload file'
