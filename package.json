@@ -1,6 +1,6 @@
 {
-  "name": "onedrive-cli",
-  "version": "1.0.0",
+  "name": "odrive-cli",
+  "version": "1.1.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -10,7 +10,14 @@
     "type": "git",
     "url": "git+https://github.com/lusionx/onedrive-cli.git"
   },
-  "author": "",
+  "author": "lusionx",
+  "bin": {
+    "odrive-cli": "./bin/cli"
+  },
+  "files": [
+    "helper.js",
+    "bin"
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/lusionx/onedrive-cli/issues"
@@ -21,6 +28,7 @@
     "commander": "^2.9.0",
     "lodash": "^3.10.1",
     "log4js": "^0.6.38",
+    "mime-types": "^2.1.15",
     "request": "^2.81.0",
     "water-fall": "^1.2.0"
   }

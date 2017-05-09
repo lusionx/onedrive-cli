@@ -254,6 +254,7 @@ cmdGetContent = (options) ->
       else
         logger.debug body
       hooks.info = body
+      logger.info '%j', _.pick body, ['id', 'name', 'file']
       callback()
   wf.push (hooks, callback) ->
     return callback() if not hooks.info.name
