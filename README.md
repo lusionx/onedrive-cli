@@ -5,7 +5,7 @@
 
 `odrive-cli auth --client_id xxxxx --client_secret yyyyy`
 
-[api](https://dev.onedrive.com/getting-started.htm), creat your app from [doc](https://dev.onedrive.com/app-registration.htm)
+[api](https://dev.onedrive.com/getting-started.htm), creat your app from [doc](https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)
 
 ## show list
 
@@ -17,4 +17,3 @@
 ## download
 
 `odrive-cli get itemid -o somelocalpath`
-
