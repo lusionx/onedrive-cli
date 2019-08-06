@@ -62,3 +62,16 @@ export async function getToken() {
     fs.writeFile(INFO_PATH, JSON.stringify(info), err => err)
     return info
 }
+
+export function fsStat(path: string): Promise<fs.Stats | undefined> {
+    return new Promise<fs.Stats>((res, rej) => {
+        fs.access(path, (err) => {
+            if (err) {
+                return res()
+            }
+            fs.stat(path, (err, st) => {
+                err ? rej(err) : res(st)
+            })
+        })
+    })
+}
