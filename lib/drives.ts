@@ -46,6 +46,15 @@ export async function itemInfo(root: string, token: string, id: string) {
     return resp.data
 }
 
+export async function itemDel(root: string, token: string, id: string) {
+    const headers = {
+        Authorization: 'bearer ' + token
+    }
+    id = encodeURIComponent(id)
+    const resp = await axios.delete(root + '/me/drive/items/' + id, { headers })
+    console.log(resp.status, resp.statusText)
+}
+
 export async function uploadSession(root: string, token: string, path: string) {
     const headers = {
         Authorization: 'bearer ' + token

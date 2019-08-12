@@ -81,6 +81,20 @@ const argv = yargs.usage('Usage $0 <cmd>')
             console.log(`curl -o ${JSON.stringify(ip)} '${it.webUrl}'`)
         }
     })
+    .command('del <id>', 'delete remote file', (cmd) => {
+        return cmd.positional('id', {
+            type: 'string',
+        })
+    }, async (argv) => {
+        let id = argv.id as string
+        if (id.startsWith('+')) {
+            const ss: string[] = JSON.parse(fs.readFileSync(TMP_FILE).toString())
+            id = ss[+id]
+        }
+        console.log('DEL', id)
+        const info = await token.getToken()
+        await drives.itemDel(GRAPH, info.access_token, id)
+    })
     .command('put <file>', 'upload file', (cmd) => {
         return cmd.positional('file', {
             describe: 'local path',
