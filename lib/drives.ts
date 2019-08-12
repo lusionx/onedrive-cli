@@ -66,7 +66,7 @@ export async function uploadSession(root: string, token: string, path: string) {
 
 const SIZE_4M = 4 * 1024 * 1024
 
-export async function uploadIter(url: string, fd: number, total: number) {
+export async function uploadIter(url: string, fd: number, total: number): Promise<Item | undefined> {
     let data = Buffer.alloc(SIZE_4M)
     let nx = 0
     let sum = 0
@@ -77,15 +77,15 @@ export async function uploadIter(url: string, fd: number, total: number) {
             'Content-Range': `bytes ${sum}-${sum + nx - 1}/${total}`
         }
         sum += nx
-        console.log({ nx, sum, headers })
+        console.log('UPLOAD_RANGE %j', { nx, sum, headers })
         const end = nx < SIZE_4M
         if (end) {
             data = data.slice(0, nx)
         }
         const resp = await axios.put(url, data, { headers })
-        console.log(resp.data)
+        // console.log('UPLOAD_RESP %j', resp.data)
         if (end) {
-            return
+            return resp.data
         }
     } while (nx > 0)
 }

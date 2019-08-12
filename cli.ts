@@ -98,18 +98,25 @@ const argv = yargs.usage('Usage $0 <cmd>')
     .command('put <file>', 'upload file', (cmd) => {
         return cmd.positional('file', {
             describe: 'local path',
-        }).positional('path', {
-            alias: 'p',
-            describe: 'remote path',
+        }).positional('dir', {
+            alias: 'd',
+            describe: 'remote dir',
         })
     }, async (argv) => {
         const fpath = argv.file as string
         const st = await token.fsStat(fpath)
         if (!st) return console.log('not exists', argv.file)
-        console.log('PUT', argv.file, argv.path)
+        let rpath = basename(fpath)
+        if (argv.dir) {
+            rpath = pathjoin(argv.dir as string, rpath)
+        }
+        console.log('PUT', argv.file, 'TO', rpath)
         const info = await token.getToken()
-        const sesson = await drives.uploadSession(GRAPH, info.access_token, fpath)
-        await drives.uploadIter(sesson.uploadUrl, fs.openSync(fpath, 'r'), st.size)
+        const sesson = await drives.uploadSession(GRAPH, info.access_token, rpath)
+        const item = await drives.uploadIter(sesson.uploadUrl, fs.openSync(fpath, 'r'), st.size)
+        if (item && item.file) {
+            console.log(item.id, item.file.mimeType, item.name)
+        }
     })
     .option('log', {
         default: 'info',
