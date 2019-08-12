@@ -2,10 +2,11 @@ import * as yargs from 'yargs'
 import * as token from './lib/token'
 import * as drives from './lib/drives'
 import * as fs from 'fs'
-import { join as pathjoin } from 'path'
+import * as os from 'os'
+import { join as pathjoin, basename } from 'path'
 
 const GRAPH = 'https://graph.microsoft.com/v1.0'
-const TMP_FILE = '/tmp/odrive.json'
+const TMP_FILE = pathjoin(os.tmpdir(), 'odrive.json')
 
 const argv = yargs.usage('Usage $0 <cmd>')
     .command('auth', 'show auth url', (cmd) => {
@@ -53,9 +54,8 @@ const argv = yargs.usage('Usage $0 <cmd>')
         })
         fs.writeFile(TMP_FILE, JSON.stringify(dv.map(e => e.id)), (err) => err)
     })
-    .command('get', 'download file', (cmd) => {
+    .command('get <id>', 'download file', (cmd) => {
         return cmd.positional('id', {
-            alias: 'i',
             type: 'string',
         }).positional('path', {
             alias: 'p',
@@ -78,9 +78,24 @@ const argv = yargs.usage('Usage $0 <cmd>')
                     ip = pathjoin(ip, it.name)
                 }
             }
-            console.log('FORM', it.webUrl)
-            console.log('SAVE', ip)
+            console.log(`curl -o ${JSON.stringify(ip)} '${it.webUrl}'`)
         }
+    })
+    .command('put <file>', 'upload file', (cmd) => {
+        return cmd.positional('file', {
+            describe: 'local path',
+        }).positional('path', {
+            alias: 'p',
+            describe: 'remote path',
+        })
+    }, async (argv) => {
+        const fpath = argv.file as string
+        const st = await token.fsStat(fpath)
+        if (!st) return console.log('not exists', argv.file)
+        console.log('PUT', argv.file, argv.path)
+        const info = await token.getToken()
+        const sesson = await drives.uploadSession(GRAPH, info.access_token, fpath)
+        await drives.uploadIter(sesson.uploadUrl, fs.openSync(fpath, 'r'), st.size)
     })
     .option('log', {
         default: 'info',
